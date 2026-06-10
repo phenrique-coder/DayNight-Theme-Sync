@@ -1,0 +1,24 @@
+{
+  "name": "daynight-theme-sync",
+  "version": "1.0.0",
+  "description": "Automatically change theme styles when dark mode is enabled or disabled.",
+  "repository": "https://github.com/phenrique-coder/DayNight-Theme-Sync",
+  "author": "phenrique-coder",
+  "license": "GPL-3.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run clean && npm run build:schema && node build.mjs",
+    "clean": "rm -rf ./out/* && rm -rf ./schemas/*.compiled && rm -rf ./*.com.zip",
+    "build:schema": "glib-compile-schemas ./schemas",
+    "install:extension": "npm run build && cp -r ./out/* ~/.local/share/gnome-shell/extensions/",
+    "wayland-session": "dbus-run-session -- gnome-shell --nested --wayland",
+    "dev:wayland": "npm run build && npm run install:extension && npm run wayland-session"
+  },
+  "devDependencies": {
+    "archiver": "^7.0.1"
+  },
+  "dependencies": {
+    "@girs/gjs": "^4.0.0-beta.14",
+    "@girs/gnome-shell": "^46.0.2"
+  }
+}

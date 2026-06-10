@@ -1,0 +1,6 @@
+node_modules/
+out/*
+yarn.lock
+out/*
+schemas/*.compiled
+*github.com.zip

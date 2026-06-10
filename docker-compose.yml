@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  npm:
+    build: .
+    volumes:
+      - ./:/app:Z
+    entrypoint: ["npm"]
+  node:
+    build: .
+    volumes:
+      - ./:/app:Z
+    entrypoint: ["node"]

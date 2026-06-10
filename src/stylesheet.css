@@ -1,0 +1,18 @@
+/* Custom stylesheet for DayNight Theme Sync */
+
+.daynight-theme-sync-menu-item:hover,
+.daynight-theme-sync-menu-item:focus,
+.daynight-theme-sync-menu-item:active,
+.daynight-theme-sync-menu-item.selected {
+    background-color: -selected-bg-color !important;
+    color: -selected-fg-color !important;
+    border-radius: 6px;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.daynight-theme-sync-menu-item:hover StLabel,
+.daynight-theme-sync-menu-item:focus StLabel,
+.daynight-theme-sync-menu-item:active StLabel,
+.daynight-theme-sync-menu-item.selected StLabel {
+    color: -selected-fg-color !important;
+}

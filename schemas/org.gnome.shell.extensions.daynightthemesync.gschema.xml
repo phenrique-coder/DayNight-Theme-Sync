@@ -1,0 +1,102 @@
+<schemalist gettext-domain="gnome-shell-extension-daynight-theme-sync">
+  <schema id="org.gnome.shell.extensions.daynightthemesync" path="/org/gnome/shell/extensions/daynightthemesync/">
+    <key name="first-time-install" type="b">
+      <default>true</default>
+    </key>
+    <key name="cursor-theme-light" type="s">
+      <default>"Adwaita"</default>
+      <summary>shell theme name for light mode</summary>
+      <description>The name of the shell theme for light mode</description>
+    </key>
+    <key name="icon-theme-light" type="s">
+      <default>"Adwaita"</default>
+      <summary>gtk3 theme name for light mode</summary>
+      <description>The name of the gtk3 theme for light mode</description>
+    </key>
+    <key name="shell-theme-light" type="s">
+      <default>"Adwaita"</default>
+      <summary>shell theme name for light mode</summary>
+      <description>The name of the shell theme for light mode</description>
+    </key>
+    <key name="gtk3-theme-light" type="s">
+      <default>"Adwaita"</default>
+      <summary>gtk3 theme name for light mode</summary>
+      <description>The name of the gtk3 theme for light mode</description>
+    </key>
+    <key name="cursor-theme-dark" type="s">
+      <default>"Adwaita"</default>
+      <summary>shell theme name for light mode</summary>
+      <description>The name of the shell theme for light mode</description>
+    </key>
+    <key name="icon-theme-dark" type="s">
+      <default>"Adwaita"</default>
+      <summary>gtk3 theme name for light mode</summary>
+      <description>The name of the gtk3 theme for light mode</description>
+    </key>
+    <key name="shell-theme-dark" type="s">
+      <default>"Adwaita"</default>
+      <summary>shell theme name for dark mode</summary>
+      <description>The name of the shell theme for dark mode</description>
+    </key>
+    <key name="gtk3-theme-dark" type="s">
+      <default>"Adwaita"</default>
+      <summary>gtk3 theme name for dark mode</summary>
+      <description>The name of the gtk3 theme for dark mode</description>
+    </key>
+    <key name="optimize-darklight-switch-transition" type="b">
+      <default>false</default>
+      <description>Optimize animation when toggling between light and dark modes.</description>
+    </key>
+    <key name="darklight-transition-duration" type="i">
+      <default>1000</default>
+    </key>
+    <key name="darkmode-toggle-clickdelay" type="i">
+      <default>2000</default>
+    </key>
+    <key name="run-custom-commands" type="b">
+      <default>false</default>
+      <summary>Whether to run custom commands on theme switch</summary>
+      <description>If true, run custom shell commands when entering light or dark mode.</description>
+    </key>
+    <key name="custom-command-light" type="s">
+      <default>""</default>
+      <summary>Custom command to run in light mode</summary>
+      <description>The shell command to execute when switching to light mode.</description>
+    </key>
+    <key name="custom-command-dark" type="s">
+      <default>""</default>
+      <summary>Custom command to run in dark mode</summary>
+      <description>The shell command to execute when switching to dark mode.</description>
+    </key>
+    <key name="sync-lockscreen-wallpaper" type="b">
+      <default>false</default>
+      <summary>Sync lockscreen wallpaper</summary>
+      <description>Whether to change the lockscreen wallpaper when the theme switches.</description>
+    </key>
+    <key name="lockscreen-use-desktop-wallpaper" type="b">
+      <default>false</default>
+      <summary>Use desktop wallpaper for lockscreen</summary>
+      <description>Whether to use the same wallpaper selected for the desktop on the lockscreen.</description>
+    </key>
+    <key name="lockscreen-wallpaper-light" type="s">
+      <default>""</default>
+      <summary>Lockscreen wallpaper in light mode</summary>
+      <description>File path or URI for the lockscreen wallpaper in light mode.</description>
+    </key>
+    <key name="lockscreen-wallpaper-dark" type="s">
+      <default>""</default>
+      <summary>Lockscreen wallpaper in dark mode</summary>
+      <description>File path or URI for the lockscreen wallpaper in dark mode.</description>
+    </key>
+    <key name="show-indicator" type="b">
+      <default>true</default>
+      <summary>Show status indicator</summary>
+      <description>Show a status indicator icon in the system panel.</description>
+    </key>
+    <key name="toggle-theme-shortcut" type="as">
+      <default>['&lt;Super&gt;y']</default>
+      <summary>Shortcut to toggle dark mode</summary>
+      <description>Keyboard shortcut to toggle between light and dark modes.</description>
+    </key>
+  </schema>
+</schemalist>
