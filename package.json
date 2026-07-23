@@ -1,6 +1,6 @@
 {
   "name": "daynight-theme-sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatically change theme styles when dark mode is enabled or disabled.",
   "repository": "https://github.com/phenrique-coder/DayNight-Theme-Sync",
   "author": "phenrique-coder",
