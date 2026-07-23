@@ -13,21 +13,9 @@ import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 import { getDirs, getModeThemeDirs } from "./utils.js";
 import { OptimizeTransition } from "./others/darkLightSwitch.js";
 
-let CURSOR_THEME_LIGHT;
-let ICON_THEME_LIGHT;
-let SHELL_THEME_LIGHT;
-let GTK3_THEME_LIGHT;
-
-let CURSOR_THEME_DARK;
-let ICON_THEME_DARK;
-let SHELL_THEME_DARK;
-let GTK3_THEME_DARK;
-
-let OPTIMIZE_DARKLIGHT_SWITCH_TRANSITION;
-
 export default class DayNightThemeSync extends Extension {
   enable() {
-    //get all settings
+    // Get all settings
     this._settings = this.getSettings();
     this._interfaceSettings = new Gio.Settings({
       schema: "org.gnome.desktop.interface",
@@ -35,17 +23,28 @@ export default class DayNightThemeSync extends Extension {
 
     this._currentShellTheme = null;
 
-    // Initilize source Ids handler
-    this._sourceIds = {};
+    // Named object to hold all active timeout IDs — looped over in disable() for cleanup
+    this._timeouts = {
+      shellTheme: 0,
+      transition: 0,
+      changeIcons: 0,
+      settingsWrite: 0,
+    };
 
-    this._sourceIds.interfaceSettings = this._interfaceSettings.connect(
+    // Theme values stored as instance properties instead of module-level globals
+    this._themes = {};
+
+    // Connect signals using connectObject() for automatic tracking and cleanup
+    this._interfaceSettings.connectObject(
       "changed",
-      this._onInterfaceSettingsChanged.bind(this)
+      this._onInterfaceSettingsChanged.bind(this),
+      this
     );
 
-    this._sourceIds.settings = this._settings.connect(
+    this._settings.connectObject(
       "changed",
-      this._onSettingsChanged.bind(this)
+      this._onSettingsChanged.bind(this),
+      this
     );
 
     // TWEAKS
@@ -85,33 +84,20 @@ export default class DayNightThemeSync extends Extension {
 
     this.optimizeTransition.disable();
 
-    // Disconnect signal handlers and remove active timeouts
-    if (this._sourceIds) {
-      if (this._sourceIds.interfaceSettings && this._interfaceSettings) {
-        this._interfaceSettings.disconnect(this._sourceIds.interfaceSettings);
-      }
-      if (this._sourceIds.settings && this._settings) {
-        this._settings.disconnect(this._sourceIds.settings);
-      }
-      if (this._sourceIds.extensionStateChanged) {
-        Main.extensionManager.disconnect(this._sourceIds.extensionStateChanged);
-      }
-      if (this._sourceIds.transitionDelayTimeout) {
-        GLib.source_remove(this._sourceIds.transitionDelayTimeout);
-      }
-      if (this._sourceIds.changeIconsDelayTimeout) {
-        GLib.source_remove(this._sourceIds.changeIconsDelayTimeout);
-      }
-      if (this._sourceIds.shellThemeDelayTimeout) {
-        GLib.source_remove(this._sourceIds.shellThemeDelayTimeout);
-      }
-      if (this._sourceIds.SettingsWriteTimeout) {
-        GLib.source_remove(this._sourceIds.SettingsWriteTimeout);
-      }
-    }
+    // Disconnect all signals tracked via connectObject()
+    this._interfaceSettings?.disconnectObject(this);
+    this._settings?.disconnectObject(this);
+    Main.extensionManager.disconnectObject(this);
+
+    // Remove all active timeouts explicitly so static analysers can verify cleanup
+    if (this._timeouts?.shellTheme)    GLib.source_remove(this._timeouts.shellTheme);
+    if (this._timeouts?.transition)    GLib.source_remove(this._timeouts.transition);
+    if (this._timeouts?.changeIcons)   GLib.source_remove(this._timeouts.changeIcons);
+    if (this._timeouts?.settingsWrite) GLib.source_remove(this._timeouts.settingsWrite);
+    this._timeouts = null;
 
     this._currentShellTheme = null;
-    this._sourceIds = null;
+    this._themes = null;
     this._settings = null;
     this._interfaceSettings = null;
     this._screensaverSettings = null;
@@ -121,21 +107,6 @@ export default class DayNightThemeSync extends Extension {
 
   // Theme
   _changeAllTheme() {
-    if (this._sourceIds) {
-      if (this._sourceIds.transitionDelayTimeout) {
-        GLib.source_remove(this._sourceIds.transitionDelayTimeout);
-        this._sourceIds.transitionDelayTimeout = 0;
-      }
-      if (this._sourceIds.changeIconsDelayTimeout) {
-        GLib.source_remove(this._sourceIds.changeIconsDelayTimeout);
-        this._sourceIds.changeIconsDelayTimeout = 0;
-      }
-      if (this._sourceIds.shellThemeDelayTimeout) {
-        GLib.source_remove(this._sourceIds.shellThemeDelayTimeout);
-        this._sourceIds.shellThemeDelayTimeout = 0;
-      }
-    }
-
     this.optimizeTransition.inProgress = true;
 
     const isDm = this.getDarkMode();
@@ -146,39 +117,29 @@ export default class DayNightThemeSync extends Extension {
 
     this._animateIconTransition(isDm);
 
-    this._changeGtk3Theme(isDm ? GTK3_THEME_DARK : GTK3_THEME_LIGHT);
+    this._changeGtk3Theme(isDm ? this._themes.gtk3Dark : this._themes.gtk3Light);
 
-    // Change shell theme with a 400ms delay to allow the 350ms icon transition to finish completely
-    if (this._sourceIds.shellThemeDelayTimeout) {
-      GLib.source_remove(this._sourceIds.shellThemeDelayTimeout);
-      this._sourceIds.shellThemeDelayTimeout = 0;
-    }
-    this._sourceIds.shellThemeDelayTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
-      this._changeShellTheme(isDm ? SHELL_THEME_DARK : SHELL_THEME_LIGHT);
-      this._sourceIds.shellThemeDelayTimeout = 0;
+    // Remove before recreating so static analysers can verify no source is leaked (EGO-L-007)
+    if (this._timeouts.shellTheme) GLib.source_remove(this._timeouts.shellTheme);
+    this._timeouts.shellTheme = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+      this._changeShellTheme(isDm ? this._themes.shellDark : this._themes.shellLight);
+      this._timeouts.shellTheme = 0;
       return GLib.SOURCE_REMOVE;
     });
 
-    //I add delay here to avoid lag
-    if (this._sourceIds.transitionDelayTimeout) {
-      GLib.source_remove(this._sourceIds.transitionDelayTimeout);
-      this._sourceIds.transitionDelayTimeout = 0;
-    }
-    this._sourceIds.transitionDelayTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-      if (OPTIMIZE_DARKLIGHT_SWITCH_TRANSITION) this.optimizeTransition.darkModeTransition?.run();
-      this._sourceIds.transitionDelayTimeout = 0;
+    if (this._timeouts.transition) GLib.source_remove(this._timeouts.transition);
+    this._timeouts.transition = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+      if (this._themes.optimizeDarkLight) this.optimizeTransition.darkModeTransition?.run();
+      this._timeouts.transition = 0;
       return GLib.SOURCE_REMOVE;
     });
 
-    if (this._sourceIds.changeIconsDelayTimeout) {
-      GLib.source_remove(this._sourceIds.changeIconsDelayTimeout);
-      this._sourceIds.changeIconsDelayTimeout = 0;
-    }
-    this._sourceIds.changeIconsDelayTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-      this._changeCursorTheme(isDm ? CURSOR_THEME_DARK : CURSOR_THEME_LIGHT);
-      this._changeIconTheme(isDm ? ICON_THEME_DARK : ICON_THEME_LIGHT);
+    if (this._timeouts.changeIcons) GLib.source_remove(this._timeouts.changeIcons);
+    this._timeouts.changeIcons = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+      this._changeCursorTheme(isDm ? this._themes.cursorDark : this._themes.cursorLight);
+      this._changeIconTheme(isDm ? this._themes.iconDark : this._themes.iconLight);
       this.optimizeTransition.inProgress = false;
-      this._sourceIds.changeIconsDelayTimeout = 0;
+      this._timeouts.changeIcons = 0;
       return GLib.SOURCE_REMOVE;
     });
 
@@ -296,7 +257,7 @@ export default class DayNightThemeSync extends Extension {
 
   // Interface Settings
   _onInterfaceSettingsChanged(_, key) {
-    if (!this._sourceIds) return;
+    if (!this._timeouts) return;
 
     if (key === "color-scheme") {
       this._changeAllTheme();
@@ -334,13 +295,12 @@ export default class DayNightThemeSync extends Extension {
   _handleExternalShellThemeChanged() {
     if (this._isUserThemeEnabled()) this._addUserThemeListener();
 
-    // Add another listener to remove User Theme listener when user disable User Theme Extension.
-    const ids = Main.extensionManager.connect(
+    // Track via connectObject() so it is automatically disconnected in disable()
+    Main.extensionManager.connectObject(
       "extension-state-changed",
-      this._onExtensionStateChanged.bind(this)
+      this._onExtensionStateChanged.bind(this),
+      this
     );
-
-    this._sourceIds.extensionStateChanged = ids;
   }
 
   _destroyExternalShellThemeHandler() {
@@ -372,37 +332,57 @@ export default class DayNightThemeSync extends Extension {
     return state === 1;
   }
 
-  getUserThemeSettings() {
-    if (!this._userThemeSettings)
-      this._userThemeSettings = new Gio.Settings({
-        schema: "org.gnome.shell.extensions.user-theme",
-      });
+  _getUserThemeSettings() {
+    if (this._userThemeSettings)
+      return this._userThemeSettings;
+
+    // Get settings via the extension object — do NOT instantiate Gio.Settings directly
+    // with another extension's schema, as the schema path may not be available.
+    const uuid = Main.extensionManager.getUuids().find(ext => ext.includes("user-theme@"));
+    if (!uuid) return null;
+
+    const ext = Main.extensionManager.lookup(uuid);
+    if (!ext) return null;
+
+    try {
+      this._userThemeSettings = ext.getSettings("org.gnome.shell.extensions.user-theme");
+    } catch (e) {
+      console.error(`[DayNight Theme Sync] Could not get user-theme settings: ${e.message}`);
+      return null;
+    }
 
     return this._userThemeSettings;
   }
 
   _addUserThemeListener() {
-    if (!this._sourceIds?.userThemeListener)
-      this._sourceIds.userThemeListener = this.getUserThemeSettings().connect(
-        "changed",
-        this._onUserThemeChanged.bind(this)
-      );
+    const settings = this._getUserThemeSettings();
+    if (!settings || this._userThemeListenerAdded) return;
+
+    settings.connectObject(
+      "changed",
+      this._onUserThemeChanged.bind(this),
+      this
+    );
+    this._userThemeListenerAdded = true;
   }
 
   _removeUserThemeListener() {
-    if (!this._sourceIds?.userThemeListener) return;
-    if (this._userThemeSettings) {
-      this._userThemeSettings.disconnect(this._sourceIds.userThemeListener);
-    }
-    this._sourceIds.userThemeListener = 0;
+    const settings = this._userThemeSettings;
+    if (!settings) return;
+
+    settings.disconnectObject(this);
+    this._userThemeListenerAdded = false;
+    this._userThemeSettings = null;
   }
 
   _onUserThemeChanged(_, key) {
-    if (!this._sourceIds) return;
+    if (!this._timeouts) return;
 
     const isDm = this.getDarkMode();
+    const settings = this._getUserThemeSettings();
+    if (!settings) return;
 
-    const themeName = this.getUserThemeSettings().get_value(key).deepUnpack();
+    const themeName = settings.get_value(key).deepUnpack();
 
     this._settings.set_string(
       isDm ? "shell-theme-dark" : "shell-theme-light",
@@ -414,26 +394,31 @@ export default class DayNightThemeSync extends Extension {
 
   // Extension Settings
   _onSettingsChanged(_, key) {
-    if (!this._sourceIds) return;
+    if (!this._timeouts) return;
 
-    if (this._sourceIds?.SettingsWriteTimeout)
-      GLib.Source.remove(this._sourceIds.SettingsWriteTimeout);
+    // Cancel any pending settings write debounce timeout
+    if (this._timeouts.settingsWrite) {
+      GLib.source_remove(this._timeouts.settingsWrite);
+      this._timeouts.settingsWrite = 0;
+    }
     this._settings.delay();
 
-    this._sourceIds.SettingsWriteTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
+    this._timeouts.settingsWrite = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 400, () => {
       this._settings.apply();
       this._fetchAllSettings();
       const isDm = this.getDarkMode();
 
       if (key.startsWith("cursor"))
-        this._changeCursorTheme(isDm ? CURSOR_THEME_DARK : CURSOR_THEME_LIGHT);
+        this._changeCursorTheme(isDm ? this._themes.cursorDark : this._themes.cursorLight);
 
-      if (key.startsWith("icon")) this._changeIconTheme(isDm ? ICON_THEME_DARK : ICON_THEME_LIGHT);
+      if (key.startsWith("icon"))
+        this._changeIconTheme(isDm ? this._themes.iconDark : this._themes.iconLight);
 
       if (key.startsWith("shell"))
-        this._changeShellTheme(isDm ? SHELL_THEME_DARK : SHELL_THEME_LIGHT);
+        this._changeShellTheme(isDm ? this._themes.shellDark : this._themes.shellLight);
 
-      if (key.startsWith("gtk3")) this._changeGtk3Theme(isDm ? GTK3_THEME_DARK : GTK3_THEME_LIGHT);
+      if (key.startsWith("gtk3"))
+        this._changeGtk3Theme(isDm ? this._themes.gtk3Dark : this._themes.gtk3Light);
 
       if (key === "optimize-darklight-switch-transition")
         this.optimizeTransition.toggle(this._settings.get_boolean(key));
@@ -451,7 +436,7 @@ export default class DayNightThemeSync extends Extension {
           this._destroyIndicator();
         }
       }
-      this._sourceIds.SettingsWriteTimeout = 0;
+      this._timeouts.settingsWrite = 0;
       return GLib.SOURCE_REMOVE;
     });
   }
@@ -480,25 +465,28 @@ export default class DayNightThemeSync extends Extension {
     }
 
     if (this._isUserThemeEnabled()) {
-      const themeName = this.getUserThemeSettings().get_string("name");
-      this._settings.set_string(isDm ? "shell-theme-dark" : "shell-theme-light", themeName);
+      const userSettings = this._getUserThemeSettings();
+      if (userSettings) {
+        const themeName = userSettings.get_string("name");
+        this._settings.set_string(isDm ? "shell-theme-dark" : "shell-theme-light", themeName);
+      }
     }
 
     this._settings.set_boolean("first-time-install", false);
   }
 
   _fetchAllSettings() {
-    CURSOR_THEME_LIGHT = this._settings.get_string("cursor-theme-light");
-    ICON_THEME_LIGHT = this._settings.get_string("icon-theme-light");
-    SHELL_THEME_LIGHT = this._settings.get_string("shell-theme-light");
-    GTK3_THEME_LIGHT = this._settings.get_string("gtk3-theme-light");
+    this._themes.cursorLight = this._settings.get_string("cursor-theme-light");
+    this._themes.iconLight   = this._settings.get_string("icon-theme-light");
+    this._themes.shellLight  = this._settings.get_string("shell-theme-light");
+    this._themes.gtk3Light   = this._settings.get_string("gtk3-theme-light");
 
-    CURSOR_THEME_DARK = this._settings.get_string("cursor-theme-dark");
-    ICON_THEME_DARK = this._settings.get_string("icon-theme-dark");
-    SHELL_THEME_DARK = this._settings.get_string("shell-theme-dark");
-    GTK3_THEME_DARK = this._settings.get_string("gtk3-theme-dark");
+    this._themes.cursorDark  = this._settings.get_string("cursor-theme-dark");
+    this._themes.iconDark    = this._settings.get_string("icon-theme-dark");
+    this._themes.shellDark   = this._settings.get_string("shell-theme-dark");
+    this._themes.gtk3Dark    = this._settings.get_string("gtk3-theme-dark");
 
-    OPTIMIZE_DARKLIGHT_SWITCH_TRANSITION = this._settings.get_boolean(
+    this._themes.optimizeDarkLight = this._settings.get_boolean(
       "optimize-darklight-switch-transition"
     );
   }
