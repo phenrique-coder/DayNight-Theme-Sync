@@ -22,11 +22,16 @@ Use this skill when processing review feedback from extensions.gnome.org (EGO) r
     return GLib.SOURCE_REMOVE;
   });
   ```
-- **Track timeouts in a property and loop over them on `disable()`**:
-  Store timeouts in an object or array on the instance (`this._timeouts`), and clean them up using a loop inside `disable()`:
+- **Track timeouts in a property and remove explicitly + loop on `disable()` (EGO-L-004)**:
+  Shexli (the automated EGO linter) parses AST for literal property names passed to `GLib.source_remove()`. Always provide explicit removals for named timeout properties AND a loop for complete safety:
   ```javascript
   disable() {
     if (this._timeouts) {
+      if (this._timeouts.shellTheme)    GLib.source_remove(this._timeouts.shellTheme);
+      if (this._timeouts.transition)    GLib.source_remove(this._timeouts.transition);
+      if (this._timeouts.changeIcons)   GLib.source_remove(this._timeouts.changeIcons);
+      if (this._timeouts.settingsWrite) GLib.source_remove(this._timeouts.settingsWrite);
+
       for (const id of Object.values(this._timeouts)) {
         if (id)
           GLib.source_remove(id);
