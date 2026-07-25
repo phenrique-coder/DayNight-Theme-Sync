@@ -29,6 +29,7 @@ export default class DayNightThemeSync extends Extension {
     this._brightnessAccentSync = new BrightnessAccentSync(this._settings, this._interfaceSettings);
 
     this._currentShellTheme = null;
+    this._applyingThemeChanges = false;
 
     // Named object to hold all active timeout IDs — looped over in disable() for cleanup
     this._timeouts = {
@@ -83,10 +84,29 @@ export default class DayNightThemeSync extends Extension {
         schema: "org.gnome.settings-daemon.plugins.color",
       });
       this._colorSettings.connectObject(
-        "changed::night-light-active",
+        "changed::night-light-enabled",
         this._onNightLightActiveChanged.bind(this),
         this
       );
+
+      this._colorProxy = Gio.DBusProxy.new_for_bus_sync(
+        Gio.BusType.SESSION,
+        Gio.DBusProxyFlags.NONE,
+        null,
+        "org.gnome.SettingsDaemon.Color",
+        "/org/gnome/SettingsDaemon/Color",
+        "org.gnome.SettingsDaemon.Color",
+        null
+      );
+
+      if (this._colorProxy) {
+        this._colorProxy.connectObject(
+          "g-properties-changed",
+          this._onNightLightActiveChanged.bind(this),
+          this
+        );
+      }
+
       this._checkNightLightSync();
     } catch (e) {
       console.error(`[DayNight Theme Sync] Could not listen to Night Light settings: ${e.message}`);
@@ -110,6 +130,8 @@ export default class DayNightThemeSync extends Extension {
     this._interfaceSettings?.disconnectObject(this);
     this._settings?.disconnectObject(this);
     this._colorSettings?.disconnectObject(this);
+    this._colorProxy?.disconnectObject(this);
+    this._colorProxy = null;
     Main.extensionManager.disconnectObject(this);
 
     // Remove all active timeouts (explicitly for Shexli static analyzer + loop for reviewer compliance)
@@ -145,7 +167,10 @@ export default class DayNightThemeSync extends Extension {
 
   // Theme
   _changeAllTheme() {
-    this.optimizeTransition.inProgress = true;
+    this._applyingThemeChanges = true;
+    if (this.optimizeTransition) {
+      this.optimizeTransition.inProgress = true;
+    }
 
     const isDm = this.getDarkMode();
 
@@ -167,7 +192,9 @@ export default class DayNightThemeSync extends Extension {
 
     if (this._timeouts.transition) GLib.source_remove(this._timeouts.transition);
     this._timeouts.transition = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-      if (this._themes.optimizeDarkLight) this.optimizeTransition.darkModeTransition?.run();
+      if (this._themes.optimizeDarkLight && this.optimizeTransition) {
+        this.optimizeTransition.darkModeTransition?.run();
+      }
       this._timeouts.transition = 0;
       return GLib.SOURCE_REMOVE;
     });
@@ -176,7 +203,10 @@ export default class DayNightThemeSync extends Extension {
     this._timeouts.changeIcons = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
       this._changeCursorTheme(isDm ? this._themes.cursorDark : this._themes.cursorLight);
       this._changeIconTheme(isDm ? this._themes.iconDark : this._themes.iconLight);
-      this.optimizeTransition.inProgress = false;
+      if (this.optimizeTransition) {
+        this.optimizeTransition.inProgress = false;
+      }
+      this._applyingThemeChanges = false;
       this._timeouts.changeIcons = 0;
       return GLib.SOURCE_REMOVE;
     });
@@ -302,7 +332,11 @@ export default class DayNightThemeSync extends Extension {
 
     if (key === "color-scheme") {
       this._changeAllTheme();
+      return;
     }
+
+    // Ignore secondary signals caused by extension's own theme application
+    if (this._applyingThemeChanges) return;
 
     // Handle cases where the user changes the theme from external sources (e.g., GNOME Tweaks).
     // This prevents the theme from being reverted to the one set by this extension, ensuring external changes are respected.
@@ -417,7 +451,7 @@ export default class DayNightThemeSync extends Extension {
   }
 
   _onUserThemeChanged(_, key) {
-    if (!this._timeouts) return;
+    if (!this._timeouts || this._applyingThemeChanges) return;
 
     const isDm = this.getDarkMode();
     const settings = this._getUserThemeSettings();
@@ -492,10 +526,21 @@ export default class DayNightThemeSync extends Extension {
   }
 
   _onNightLightActiveChanged() {
-    if (!this._settings || !this._colorSettings || !this._interfaceSettings) return;
+    if (!this._settings || !this._interfaceSettings) return;
     if (!this._settings.get_boolean("night-light-sync-enabled")) return;
 
-    const active = this._colorSettings.get_boolean("night-light-active");
+    let active = false;
+    if (this._colorProxy) {
+      const variant = this._colorProxy.get_cached_property("NightLightActive");
+      if (variant) {
+        active = variant.get_boolean();
+      } else if (this._colorSettings) {
+        active = this._colorSettings.get_boolean("night-light-enabled");
+      }
+    } else if (this._colorSettings) {
+      active = this._colorSettings.get_boolean("night-light-enabled");
+    }
+
     const targetScheme = active ? "prefer-dark" : "default";
 
     if (this._interfaceSettings.get_string("color-scheme") !== targetScheme) {

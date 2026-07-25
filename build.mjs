@@ -59,6 +59,14 @@ async function build() {
   // Copy License
   fs.copyFileSync(LICENSE_PATH, OUT_DIR + metadata.uuid + "/LICENSE");
 
+  // Copy Changelogs (multi-language support)
+  const rootFiles = fs.readdirSync("./");
+  for (const file of rootFiles) {
+    if (file.startsWith("CHANGELOG") && file.endsWith(".md")) {
+      fs.copyFileSync(file, path.join(OUT_DIR, metadata.uuid, file));
+    }
+  }
+
   zipFolder(OUT_DIR + metadata.uuid, metadata.uuid + ".zip");
 }
 

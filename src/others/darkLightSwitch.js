@@ -130,13 +130,11 @@ export class OptimizeTransition {
   }
 
   _patchDarkModeToggle() {
-    // Main.layoutManager.screenTransition.run();
-
     let that = this;
 
     this.darkModeToggle._toggleMode = function () {
-      // Handle when user click dark mode toggle multiple time
-      if (this.secondClick || that.inProgress) return;
+      // Prevent rapid double clicking while allow mode switching
+      if (this.secondClick) return;
 
       this.secondClick = true;
 
@@ -152,7 +150,9 @@ export class OptimizeTransition {
       });
 
       that.darkModeTransition?.cloneSceenAndDisplay();
-      this._settings.set_string("color-scheme", this.checked ? "default" : "prefer-dark");
+      const currentScheme = this._settings.get_string("color-scheme");
+      const nextScheme = currentScheme === "prefer-dark" ? "default" : "prefer-dark";
+      this._settings.set_string("color-scheme", nextScheme);
     };
   }
 }

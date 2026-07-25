@@ -34,6 +34,12 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     });
     window.add(wallpapersPage);
 
+    const changelogPage = new Adw.PreferencesPage({
+      title: _("Changelog"),
+      icon_name: "document-open-recent-symbolic",
+    });
+    window.add(changelogPage);
+
     collectAllThemes().then((themes) => {
       this._themes = themes;
 
@@ -44,6 +50,7 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
 
       this._setupAppsPage(appsPage);
       this._setupWallpapersPage(wallpapersPage, window);
+      this._setupChangelogPage(changelogPage);
     });
 
     window.connect("close-request", () => {
@@ -544,6 +551,140 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     slideshowExpander.add_row(randomSwitch);
     slideshowGroup.add(slideshowExpander);
     page.add(slideshowGroup);
+  }
+
+  _setupChangelogPage(page) {
+    let content = "";
+    try {
+      const languages = GLib.get_language_names() || [];
+      let targetFileName = "CHANGELOG.md";
+
+      for (const lang of languages) {
+        if (!lang || lang === "C" || lang === "POSIX") continue;
+
+        const candidates = [`CHANGELOG_${lang}.md`, `CHANGELOG_${lang.split("_")[0]}.md`].filter(
+          (c, idx, arr) => arr.indexOf(c) === idx
+        );
+
+        let found = false;
+        for (const cand of candidates) {
+          const file = this.dir
+            ? this.dir.get_child(cand)
+            : Gio.File.new_for_path(GLib.build_filenamev([this.path, cand]));
+
+          if (file && file.query_exists(null)) {
+            targetFileName = cand;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+
+      let file = null;
+      if (this.dir) {
+        file = this.dir.get_child(targetFileName);
+      } else if (this.path) {
+        file = Gio.File.new_for_path(GLib.build_filenamev([this.path, targetFileName]));
+      }
+
+      if (file && file.query_exists(null)) {
+        const [ok, bytes] = file.load_contents(null);
+        if (ok) {
+          content = new TextDecoder("utf-8").decode(bytes);
+        }
+      }
+    } catch (e) {
+      console.error("Error reading CHANGELOG:", e);
+    }
+
+    if (!content) {
+      const group = new Adw.PreferencesGroup({
+        title: _("Changelog"),
+      });
+      const row = new Adw.ActionRow({
+        title: _("Nenhum histórico de alterações encontrado."),
+      });
+      group.add(row);
+      page.add(group);
+      return;
+    }
+
+    const lines = content.split(/\r?\n/);
+    let currentGroup = null;
+    let currentSection = "";
+    let currentRow = null;
+    let subItems = [];
+
+    const flushRow = () => {
+      if (currentRow) {
+        if (subItems.length > 0) {
+          const subText = subItems.map((s) => `• ${s}`).join("\n");
+          currentRow.subtitle = currentRow.subtitle
+            ? `${currentRow.subtitle}\n${subText}`
+            : subText;
+        }
+        if (currentGroup) {
+          currentGroup.add(currentRow);
+        }
+        currentRow = null;
+        subItems = [];
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const rawLine = lines[i];
+      const trimmed = rawLine.trim();
+
+      if (!trimmed) continue;
+
+      if (trimmed.startsWith("## ")) {
+        flushRow();
+        const verTitle = trimmed.replace(/^##\s*/, "");
+        currentGroup = new Adw.PreferencesGroup({
+          title: verTitle,
+        });
+        page.add(currentGroup);
+        currentSection = "";
+      } else if (trimmed.startsWith("### ")) {
+        flushRow();
+        currentSection = trimmed.replace(/^###\s*/, "");
+      } else if (trimmed.startsWith("- ")) {
+        const isIndented = rawLine.startsWith("  ") || rawLine.startsWith("\t");
+
+        if (isIndented && currentRow) {
+          const subContent = trimmed.replace(/^-\s*/, "");
+          subItems.push(subContent);
+        } else {
+          flushRow();
+          if (!currentGroup) {
+            currentGroup = new Adw.PreferencesGroup({
+              title: _("Changelog"),
+            });
+            page.add(currentGroup);
+          }
+
+          const itemText = trimmed.replace(/^-\s*/, "");
+          let title = itemText;
+          let subtitle = currentSection;
+
+          const match = itemText.match(/^\*\*(.*?)\*\*:\s*(.*)$/);
+          if (match) {
+            title = match[1];
+            subtitle = match[2]
+              ? (currentSection ? `${currentSection} - ${match[2]}` : match[2])
+              : currentSection;
+          }
+
+          currentRow = new Adw.ActionRow({
+            title: title,
+            subtitle: subtitle || undefined,
+            subtitle_lines: 0,
+          });
+        }
+      }
+    }
+    flushRow();
   }
 }
 

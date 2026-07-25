@@ -24,6 +24,7 @@ cp -r ./src/* "./out/$UUID/"
 cp ./schemas/*.xml "./out/$UUID/schemas/"
 cp ./metadata.json "./out/$UUID/metadata.json"
 cp ./LICENSE "./out/$UUID/LICENSE"
+cp ./CHANGELOG*.md "./out/$UUID/" 2>/dev/null || true
 
 # 4. Install to GNOME Shell extensions directory
 echo "Installing extension to $EXTENSION_DIR..."
