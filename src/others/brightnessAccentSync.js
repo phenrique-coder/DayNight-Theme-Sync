@@ -26,7 +26,6 @@ export class BrightnessAccentSync {
       this._interfaceSettings.set_string("accent-color", accent);
     } catch (e) {
       // accent-color key only available in GNOME 47+
-      console.log(`[DayNight Theme Sync] accent-color setting not available: ${e.message}`);
     }
   }
 
@@ -50,10 +49,9 @@ export class BrightnessAccentSync {
       if (bm?.globalScale && typeof bm.globalScale.value !== "undefined") {
         bm.globalScale.value = normValue;
         success = true;
-        console.log(`[DayNight Theme Sync] Brightness set via brightnessManager.globalScale.value = ${normValue}`);
       }
     } catch (e) {
-      console.log(`[DayNight Theme Sync] brightnessManager error: ${e.message}`);
+      // brightnessManager not available on this GNOME version
     }
 
     // Strategy 2: Quick Settings _brightness slider (GNOME 46-48)
@@ -66,11 +64,10 @@ export class BrightnessAccentSync {
           if (slider && typeof slider.value !== "undefined") {
             slider.value = normValue;
             success = true;
-            console.log(`[DayNight Theme Sync] Brightness set via QuickSettings._brightness._slider.value = ${normValue}`);
           }
         }
       } catch (e) {
-        console.log(`[DayNight Theme Sync] QuickSettings slider fallback: ${e.message}`);
+        // QuickSettings brightness slider not available
       }
     }
 
@@ -94,7 +91,6 @@ export class BrightnessAccentSync {
           (connection, res) => {
             try {
               connection.call_finish(res);
-              console.log(`[DayNight Theme Sync] Brightness set via gsd-power DBus = ${clamped}`);
             } catch (e) {
               // gsd-power Screen interface not available
             }
