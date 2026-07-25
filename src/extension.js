@@ -109,7 +109,7 @@ export default class DayNightThemeSync extends Extension {
 
       this._checkNightLightSync();
     } catch (e) {
-      console.error(`[DayNight Theme Sync] Could not listen to Night Light settings: ${e.message}`);
+      this._logError("Could not listen to Night Light settings", e);
     }
 
     // Show indicator if enabled
@@ -239,11 +239,11 @@ export default class DayNightThemeSync extends Extension {
         try {
           p.wait_finish(res);
         } catch (e) {
-          console.error(`[DayNight Theme Sync] Custom command failed: ${e.message}`);
+          this._logError("Custom command failed", e);
         }
       });
     } catch (e) {
-      console.error(`[DayNight Theme Sync] Error spawning custom command: ${e.message}`);
+      this._logError("Error spawning custom command", e);
     }
   }
 
@@ -263,7 +263,7 @@ export default class DayNightThemeSync extends Extension {
           ? this._backgroundSettings.get_string("picture-uri-dark")
           : this._backgroundSettings.get_string("picture-uri");
       } catch (e) {
-        console.error(`[DayNight Theme Sync] Error reading desktop wallpaper keys: ${e.message}`);
+        this._logError("Error reading desktop wallpaper keys", e);
       }
     } else {
       uri = isDm
@@ -282,7 +282,7 @@ export default class DayNightThemeSync extends Extension {
       }
       this._screensaverSettings.set_string("picture-uri", uri);
     } catch (e) {
-      console.error(`[DayNight Theme Sync] Error syncing lockscreen wallpaper: ${e.message}`);
+      this._logError("Error syncing lockscreen wallpaper", e);
     }
   }
 
@@ -422,7 +422,7 @@ export default class DayNightThemeSync extends Extension {
     try {
       this._userThemeSettings = ext.getSettings("org.gnome.shell.extensions.user-theme");
     } catch (e) {
-      console.error(`[DayNight Theme Sync] Could not get user-theme settings: ${e.message}`);
+      this._logError("Could not get user-theme settings", e);
       return null;
     }
 
@@ -605,6 +605,10 @@ export default class DayNightThemeSync extends Extension {
   }
 
   //Utils
+  _logError(msg, e) {
+    console.error(`[DayNight Theme Sync] ${msg}: ${e?.message || e}`);
+  }
+
   getDarkMode() {
     return this._interfaceSettings.get_string("color-scheme") === "prefer-dark";
   }

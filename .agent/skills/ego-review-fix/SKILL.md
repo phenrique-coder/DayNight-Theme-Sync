@@ -61,9 +61,11 @@ Use this skill when processing review feedback from extensions.gnome.org (EGO) r
   this._settings?.disconnectObject(this);
   ```
 
-### 4. Settings Access & Third-Party Code
-- Never instantiate settings from schemas owned by other extensions or unowned schemas directly without proper schema verification.
-- Always cleanly restore monkey-patched functions, prototype overrides, or panel toggles on `disable()`.
+### 5. Excessive Console Logging (EGO-A-004)
+- **Keep `console.log/warn/error` calls per file strictly under 5**:
+  Shexli flags any extension file that contains 5 or more raw `console.log/warn/error` calls.
+- **Use a single logger helper**:
+  Group error and warning logging through a single class helper method (e.g. `_logError(msg, err)`) so that total `console.*` calls per file stay well below the limit of 5.
 
 ## Shexli Automated Linter (Experimental Warnings)
 
@@ -73,8 +75,10 @@ Shexli is the static AST linter executed automatically when uploading a `.zip` p
 
 | Rule ID | Shexli Warning Message | Cause | Resolution Pattern |
 |---|---|---|---|
+| **EGO-A-004** | `extension files should not contain excessive ungated console logging` | File contains 5 or more ungated `console.log/warn/error` calls. | Route logging through a single `_logError(msg, err)` helper so total `console.*` statements per file are <= 1. |
 | **EGO-L-004** | `main loop sources should be removed in disable()` | AST parser cannot infer dynamic loops; requires explicit literal property names passed to `GLib.source_remove()`. | Add explicit `GLib.source_remove(this._timeouts.propertyName)` calls for all property names in `disable()`, alongside dynamic loop iteration. |
 | **EGO-L-007** | `Main loop sources assigned in enable() are missing matching removals before reassignment` | Re-assigning a timeout ID without clearing the existing source first. | Always check and call `if (this._timeoutId) { GLib.source_remove(this._timeoutId); this._timeoutId = 0; }` BEFORE `GLib.timeout_add()`. |
 | **EGO-L-001** | `Signal handler missing disconnect in disable()` | Connecting signals via `.connect()` without saving ID or disconnecting. | Use `connectObject()` and disconnect with `this._settings?.disconnectObject(this)` in `disable()`. |
 | **EGO-L-003** | `Selective disable guard detected` | Guarding `disable()` with `if (!this.enabled) return;`. | Remove all conditional early-returns inside `disable()`. |
+
 
