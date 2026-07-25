@@ -64,3 +64,17 @@ Use this skill when processing review feedback from extensions.gnome.org (EGO) r
 ### 4. Settings Access & Third-Party Code
 - Never instantiate settings from schemas owned by other extensions or unowned schemas directly without proper schema verification.
 - Always cleanly restore monkey-patched functions, prototype overrides, or panel toggles on `disable()`.
+
+## Shexli Automated Linter (Experimental Warnings)
+
+Shexli is the static AST linter executed automatically when uploading a `.zip` package to [extensions.gnome.org](https://extensions.gnome.org/upload/).
+
+### Common Shexli Rule Warnings & Resolution Checklist
+
+| Rule ID | Shexli Warning Message | Cause | Resolution Pattern |
+|---|---|---|---|
+| **EGO-L-004** | `main loop sources should be removed in disable()` | AST parser cannot infer dynamic loops; requires explicit literal property names passed to `GLib.source_remove()`. | Add explicit `GLib.source_remove(this._timeouts.propertyName)` calls for all property names in `disable()`, alongside dynamic loop iteration. |
+| **EGO-L-007** | `Main loop sources assigned in enable() are missing matching removals before reassignment` | Re-assigning a timeout ID without clearing the existing source first. | Always check and call `if (this._timeoutId) { GLib.source_remove(this._timeoutId); this._timeoutId = 0; }` BEFORE `GLib.timeout_add()`. |
+| **EGO-L-001** | `Signal handler missing disconnect in disable()` | Connecting signals via `.connect()` without saving ID or disconnecting. | Use `connectObject()` and disconnect with `this._settings?.disconnectObject(this)` in `disable()`. |
+| **EGO-L-003** | `Selective disable guard detected` | Guarding `disable()` with `if (!this.enabled) return;`. | Remove all conditional early-returns inside `disable()`. |
+
