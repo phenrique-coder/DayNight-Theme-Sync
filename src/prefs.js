@@ -22,6 +22,12 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     });
     window.add(themesPage);
 
+    const appsPage = new Adw.PreferencesPage({
+      title: _("Applications & Terminals"),
+      icon_name: "utilities-terminal-symbolic",
+    });
+    window.add(appsPage);
+
     const wallpapersPage = new Adw.PreferencesPage({
       title: _("Wallpapers"),
       icon_name: "folder-pictures-symbolic",
@@ -36,6 +42,7 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
       themesPage.add(this._otherGroup());
       themesPage.add(this._customCommandsGroup());
 
+      this._setupAppsPage(appsPage);
       this._setupWallpapersPage(wallpapersPage, window);
     });
 
@@ -157,6 +164,14 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     optimzeTransition.add_row(clickDelay);
     group.add(optimzeTransition);
 
+    const nightLightSync = buildSwitchRow({
+      title: _("Sync with System Night Light"),
+      subtitle: _("Automatically switch theme to dark mode when Night Light is activated (sunset/schedule)"),
+      active: this._settings.get_boolean("night-light-sync-enabled"),
+      bind: [this._settings, "night-light-sync-enabled"],
+    });
+    group.add(nightLightSync);
+
     const showIndicator = buildSwitchRow({
       title: _("Show System Bar Icon"),
       subtitle: _("Show a shortcut icon in the top system panel to easily toggle themes and open settings"),
@@ -171,6 +186,76 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
       bind: [this._settings, "toggle-theme-shortcut"],
     });
     group.add(toggleShortcut);
+
+    // Accent Color Sync
+    const accentColors = [
+      { name: _("Blue"), value: "blue" },
+      { name: _("Teal"), value: "teal" },
+      { name: _("Green"), value: "green" },
+      { name: _("Yellow"), value: "yellow" },
+      { name: _("Orange"), value: "orange" },
+      { name: _("Red"), value: "red" },
+      { name: _("Pink"), value: "pink" },
+      { name: _("Purple"), value: "purple" },
+      { name: _("Slate"), value: "slate" },
+    ];
+
+    const accentExpander = buildExpanderRow({
+      title: _("Sync GNOME Accent Color (47+)"),
+      subtitle: _("Automatically change system accent color when theme toggles"),
+      active: this._settings.get_boolean("sync-accent-color"),
+      show_switch: true,
+      bind: [this._settings, "sync-accent-color"],
+    });
+
+    const lightAccentCombo = buildDropDown({
+      title: _("Light Mode Accent Color"),
+      items: accentColors,
+      selected: this._settings.get_string("accent-color-light"),
+      bind: [this._settings, "accent-color-light"],
+    });
+
+    const darkAccentCombo = buildDropDown({
+      title: _("Dark Mode Accent Color"),
+      items: accentColors,
+      selected: this._settings.get_string("accent-color-dark"),
+      bind: [this._settings, "accent-color-dark"],
+    });
+
+    accentExpander.add_row(lightAccentCombo);
+    accentExpander.add_row(darkAccentCombo);
+    group.add(accentExpander);
+
+    // Screen Brightness Sync
+    const brightnessExpander = buildExpanderRow({
+      title: _("Sync Screen Brightness"),
+      subtitle: _("Automatically adjust display brightness percentage on theme switch"),
+      active: this._settings.get_boolean("sync-brightness"),
+      show_switch: true,
+      bind: [this._settings, "sync-brightness"],
+    });
+
+    const lightBrightnessRow = buildSpinRow({
+      title: _("Light Mode Brightness (%)"),
+      value: this._settings.get_int("brightness-light"),
+      step: 5,
+      lower: 1,
+      upper: 100,
+      bind: [this._settings, "brightness-light"],
+    });
+
+    const darkBrightnessRow = buildSpinRow({
+      title: _("Dark Mode Brightness (%)"),
+      value: this._settings.get_int("brightness-dark"),
+      step: 5,
+      lower: 1,
+      upper: 100,
+      bind: [this._settings, "brightness-dark"],
+    });
+
+    brightnessExpander.add_row(lightBrightnessRow);
+    brightnessExpander.add_row(darkBrightnessRow);
+    group.add(brightnessExpander);
 
     return group;
   }
@@ -203,6 +288,137 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     runCommandsSwitch.add_row(darkCommandEntry);
     group.add(runCommandsSwitch);
     return group;
+  }
+
+  _setupAppsPage(page) {
+    const mainGroup = new Adw.PreferencesGroup({
+      title: _("Application Theme Sync"),
+      description: _("Automatically update themes in popular external applications and terminals when the system theme changes."),
+    });
+
+    const enableSwitch = buildSwitchRow({
+      title: _("Enable App Theme Presets"),
+      subtitle: _("Master toggle to sync third-party application themes"),
+      active: this._settings.get_boolean("enable-app-presets"),
+      bind: [this._settings, "enable-app-presets"],
+    });
+    mainGroup.add(enableSwitch);
+    page.add(mainGroup);
+
+    // Zed Editor
+    const zedGroup = new Adw.PreferencesGroup({
+      title: _("Zed Editor"),
+      description: _("Sync theme in ~/.config/zed/settings.json"),
+    });
+    const zedExpander = buildExpanderRow({
+      title: _("Sync Zed Editor"),
+      subtitle: _("Update Zed theme configuration automatically"),
+      active: this._settings.get_boolean("zed-sync-enabled"),
+      show_switch: true,
+      bind: [this._settings, "zed-sync-enabled"],
+    });
+    zedExpander.add_row(buildEntryRow({
+      title: _("Light Mode Theme"),
+      bind: [this._settings, "zed-theme-light"],
+    }));
+    zedExpander.add_row(buildEntryRow({
+      title: _("Dark Mode Theme"),
+      bind: [this._settings, "zed-theme-dark"],
+    }));
+    zedGroup.add(zedExpander);
+    page.add(zedGroup);
+
+    // VS Code
+    const vscodeGroup = new Adw.PreferencesGroup({
+      title: _("Visual Studio Code"),
+      description: _("Sync workbench.colorTheme in VS Code settings.json"),
+    });
+    const vscodeExpander = buildExpanderRow({
+      title: _("Sync VS Code"),
+      subtitle: _("Update VS Code colorTheme automatically"),
+      active: this._settings.get_boolean("vscode-sync-enabled"),
+      show_switch: true,
+      bind: [this._settings, "vscode-sync-enabled"],
+    });
+    vscodeExpander.add_row(buildEntryRow({
+      title: _("Light Mode Theme"),
+      bind: [this._settings, "vscode-theme-light"],
+    }));
+    vscodeExpander.add_row(buildEntryRow({
+      title: _("Dark Mode Theme"),
+      bind: [this._settings, "vscode-theme-dark"],
+    }));
+    vscodeGroup.add(vscodeExpander);
+    page.add(vscodeGroup);
+
+    // Alacritty
+    const alacrittyGroup = new Adw.PreferencesGroup({
+      title: _("Alacritty Terminal"),
+      description: _("Sync theme imports in ~/.config/alacritty/alacritty.toml"),
+    });
+    const alacrittyExpander = buildExpanderRow({
+      title: _("Sync Alacritty"),
+      subtitle: _("Import theme configuration for Alacritty"),
+      active: this._settings.get_boolean("alacritty-sync-enabled"),
+      show_switch: true,
+      bind: [this._settings, "alacritty-sync-enabled"],
+    });
+    alacrittyExpander.add_row(buildEntryRow({
+      title: _("Light Mode Theme / File Path"),
+      bind: [this._settings, "alacritty-theme-light"],
+    }));
+    alacrittyExpander.add_row(buildEntryRow({
+      title: _("Dark Mode Theme / File Path"),
+      bind: [this._settings, "alacritty-theme-dark"],
+    }));
+    alacrittyGroup.add(alacrittyExpander);
+    page.add(alacrittyGroup);
+
+    // Kitty
+    const kittyGroup = new Adw.PreferencesGroup({
+      title: _("Kitty Terminal"),
+      description: _("Sync colors in Kitty Terminal via remote control"),
+    });
+    const kittyExpander = buildExpanderRow({
+      title: _("Sync Kitty"),
+      subtitle: _("Change Kitty colors dynamically"),
+      active: this._settings.get_boolean("kitty-sync-enabled"),
+      show_switch: true,
+      bind: [this._settings, "kitty-sync-enabled"],
+    });
+    kittyExpander.add_row(buildEntryRow({
+      title: _("Light Mode Theme Name / File"),
+      bind: [this._settings, "kitty-theme-light"],
+    }));
+    kittyExpander.add_row(buildEntryRow({
+      title: _("Dark Mode Theme Name / File"),
+      bind: [this._settings, "kitty-theme-dark"],
+    }));
+    kittyGroup.add(kittyExpander);
+    page.add(kittyGroup);
+
+    // Ghostty
+    const ghosttyGroup = new Adw.PreferencesGroup({
+      title: _("Ghostty Terminal"),
+      description: _("Sync theme in ~/.config/ghostty/config"),
+    });
+    const ghosttyExpander = buildExpanderRow({
+      title: _("Sync Ghostty"),
+      subtitle: _("Update Ghostty theme key automatically"),
+      active: this._settings.get_boolean("ghostty-sync-enabled"),
+      show_switch: true,
+      bind: [this._settings, "ghostty-sync-enabled"],
+    });
+    ghosttyExpander.add_row(buildEntryRow({
+      title: _("Light Mode Theme"),
+      bind: [this._settings, "ghostty-theme-light"],
+    }));
+    ghosttyExpander.add_row(buildEntryRow({
+      title: _("Dark Mode Theme"),
+      bind: [this._settings, "ghostty-theme-dark"],
+    }));
+    ghosttyGroup.add(ghosttyExpander);
+    page.add(ghosttyGroup);
   }
 
   _setupWallpapersPage(page, window) {
@@ -278,6 +494,56 @@ export default class DayNightThemeSyncPrefs extends ExtensionPreferences {
     syncLockscreenSwitch.add_row(darkLockscreenRow);
     lockscreenGroup.add(syncLockscreenSwitch);
     page.add(lockscreenGroup);
+
+    // Group 3: Wallpaper Slideshow
+    const slideshowGroup = new Adw.PreferencesGroup({
+      title: _("Dynamic Wallpaper Slideshow"),
+      description: _("Cycle wallpapers periodically from selected folders for light and dark modes."),
+    });
+
+    const slideshowExpander = buildExpanderRow({
+      title: _("Enable Wallpaper Slideshow"),
+      subtitle: _("Automatically rotate wallpapers from day/night folders"),
+      active: this._settings.get_boolean("wallpaper-slideshow-enabled"),
+      show_switch: true,
+      bind: [this._settings, "wallpaper-slideshow-enabled"],
+    });
+
+    const lightFolderRow = buildFolderChooserRow({
+      title: _("Light Mode Wallpaper Folder"),
+      bind: [this._settings, "wallpaper-folder-light"],
+      window: window,
+    });
+
+    const darkFolderRow = buildFolderChooserRow({
+      title: _("Dark Mode Wallpaper Folder"),
+      bind: [this._settings, "wallpaper-folder-dark"],
+      window: window,
+    });
+
+    const intervalRow = buildSpinRow({
+      title: _("Rotation Interval (seconds)"),
+      subtitle: _("Time between wallpaper changes (e.g. 1800s = 30 minutes)"),
+      value: this._settings.get_int("wallpaper-slideshow-interval"),
+      step: 60,
+      lower: 10,
+      upper: 86400,
+      bind: [this._settings, "wallpaper-slideshow-interval"],
+    });
+
+    const randomSwitch = buildSwitchRow({
+      title: _("Random Selection"),
+      subtitle: _("Randomly pick images instead of sequential order"),
+      active: this._settings.get_boolean("wallpaper-slideshow-random"),
+      bind: [this._settings, "wallpaper-slideshow-random"],
+    });
+
+    slideshowExpander.add_row(lightFolderRow);
+    slideshowExpander.add_row(darkFolderRow);
+    slideshowExpander.add_row(intervalRow);
+    slideshowExpander.add_row(randomSwitch);
+    slideshowGroup.add(slideshowExpander);
+    page.add(slideshowGroup);
   }
 }
 
@@ -471,6 +737,73 @@ function buildFileChooserRow(
     fileDialog.open(opts.window, null, (dialog, res) => {
       try {
         const file = dialog.open_finish(res);
+        const uri = file.get_uri();
+        if (settings && key) {
+          settings.set_string(key, uri);
+        }
+      } catch (e) {
+        // User cancelled or error
+      }
+    });
+  });
+
+  return row;
+}
+
+function buildFolderChooserRow(
+  opts = {
+    title: "Select Folder",
+    bind: null,
+    window: null,
+  }
+) {
+  const row = new Adw.ActionRow({
+    title: opts.title,
+    subtitle: _("No folder selected"),
+  });
+
+  const button = new Gtk.Button({
+    icon_name: "folder-open-symbolic",
+    valign: Gtk.Align.CENTER,
+  });
+  row.add_suffix(button);
+
+  const settings = opts.bind ? opts.bind[0] : null;
+  const key = opts.bind ? opts.bind[1] : null;
+
+  const updateSubtitle = () => {
+    if (settings && key) {
+      let val = settings.get_string(key);
+      if (val && val.trim() !== "") {
+        try {
+          let displayPath = val.startsWith("file://")
+            ? decodeURIComponent(val.substring(7))
+            : val;
+          row.set_subtitle(displayPath);
+        } catch (e) {
+          row.set_subtitle(val);
+        }
+      } else {
+        row.set_subtitle(_("No folder selected"));
+      }
+    }
+  };
+
+  updateSubtitle();
+
+  if (settings && key) {
+    settings.connect(`changed::${key}`, () => updateSubtitle());
+  }
+
+  button.connect("clicked", () => {
+    const fileDialog = new Gtk.FileDialog({
+      title: opts.title,
+      modal: true,
+    });
+
+    fileDialog.select_folder(opts.window, null, (dialog, res) => {
+      try {
+        const file = dialog.select_folder_finish(res);
         const uri = file.get_uri();
         if (settings && key) {
           settings.set_string(key, uri);

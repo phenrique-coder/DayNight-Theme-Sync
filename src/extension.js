@@ -12,6 +12,9 @@ import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import { getDirs, getModeThemeDirs } from "./utils.js";
 import { OptimizeTransition } from "./others/darkLightSwitch.js";
+import { AppSync } from "./others/appSync.js";
+import { WallpaperSlideshow } from "./others/wallpaperSlideshow.js";
+import { BrightnessAccentSync } from "./others/brightnessAccentSync.js";
 
 export default class DayNightThemeSync extends Extension {
   enable() {
@@ -20,6 +23,10 @@ export default class DayNightThemeSync extends Extension {
     this._interfaceSettings = new Gio.Settings({
       schema: "org.gnome.desktop.interface",
     });
+
+    this._appSync = new AppSync(this._settings);
+    this._wallpaperSlideshow = new WallpaperSlideshow(this._settings);
+    this._brightnessAccentSync = new BrightnessAccentSync(this._settings, this._interfaceSettings);
 
     this._currentShellTheme = null;
 
@@ -70,6 +77,21 @@ export default class DayNightThemeSync extends Extension {
       this._toggleDarkMode.bind(this)
     );
 
+    // Connect to system Night Light settings
+    try {
+      this._colorSettings = new Gio.Settings({
+        schema: "org.gnome.settings-daemon.plugins.color",
+      });
+      this._colorSettings.connectObject(
+        "changed::night-light-active",
+        this._onNightLightActiveChanged.bind(this),
+        this
+      );
+      this._checkNightLightSync();
+    } catch (e) {
+      console.error(`[DayNight Theme Sync] Could not listen to Night Light settings: ${e.message}`);
+    }
+
     // Show indicator if enabled
     if (this._settings.get_boolean("show-indicator")) {
       this._createIndicator();
@@ -87,6 +109,7 @@ export default class DayNightThemeSync extends Extension {
     // Disconnect all signals tracked via connectObject()
     this._interfaceSettings?.disconnectObject(this);
     this._settings?.disconnectObject(this);
+    this._colorSettings?.disconnectObject(this);
     Main.extensionManager.disconnectObject(this);
 
     // Remove all active timeouts (explicitly for Shexli static analyzer + loop for reviewer compliance)
@@ -107,9 +130,17 @@ export default class DayNightThemeSync extends Extension {
     this._themes = null;
     this._settings = null;
     this._interfaceSettings = null;
+    this._colorSettings = null;
     this._screensaverSettings = null;
     this._backgroundSettings = null;
     this.optimizeTransition = null;
+    this._appSync = null;
+
+    this._wallpaperSlideshow?.stop();
+    this._wallpaperSlideshow = null;
+
+    this._brightnessAccentSync?.destroy();
+    this._brightnessAccentSync = null;
   }
 
   // Theme
@@ -152,6 +183,9 @@ export default class DayNightThemeSync extends Extension {
 
     this._runCustomCommands(isDm);
     this._syncLockscreenWallpaper(isDm);
+    this._appSync?.syncThemes(isDm);
+    this._wallpaperSlideshow?.update(isDm);
+    this._brightnessAccentSync?.sync(isDm);
   }
 
   _runCustomCommands(isDm) {
@@ -443,9 +477,36 @@ export default class DayNightThemeSync extends Extension {
           this._destroyIndicator();
         }
       }
+
+      if (key === "night-light-sync-enabled") {
+        this._checkNightLightSync();
+      }
+
+      if (key.startsWith("wallpaper-")) {
+        this._wallpaperSlideshow?.update(this.getDarkMode());
+      }
+
       this._timeouts.settingsWrite = 0;
       return GLib.SOURCE_REMOVE;
     });
+  }
+
+  _onNightLightActiveChanged() {
+    if (!this._settings || !this._colorSettings || !this._interfaceSettings) return;
+    if (!this._settings.get_boolean("night-light-sync-enabled")) return;
+
+    const active = this._colorSettings.get_boolean("night-light-active");
+    const targetScheme = active ? "prefer-dark" : "default";
+
+    if (this._interfaceSettings.get_string("color-scheme") !== targetScheme) {
+      this._interfaceSettings.set_string("color-scheme", targetScheme);
+    }
+  }
+
+  _checkNightLightSync() {
+    if (this._settings?.get_boolean("night-light-sync-enabled")) {
+      this._onNightLightActiveChanged();
+    }
   }
 
   _firstTimeInstall() {

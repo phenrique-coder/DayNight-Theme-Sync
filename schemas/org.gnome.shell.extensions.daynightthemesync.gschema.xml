@@ -98,5 +98,99 @@
       <summary>Shortcut to toggle dark mode</summary>
       <description>Keyboard shortcut to toggle between light and dark modes.</description>
     </key>
+    <key name="night-light-sync-enabled" type="b">
+      <default>false</default>
+      <summary>Sync theme with system Night Light</summary>
+      <description>Automatically switch theme when GNOME Night Light activates or deactivates.</description>
+    </key>
+    <key name="enable-app-presets" type="b">
+      <default>false</default>
+      <summary>Enable app theme presets</summary>
+      <description>Automatically sync theme configurations for supported third-party applications.</description>
+    </key>
+    <key name="zed-sync-enabled" type="b">
+      <default>false</default>
+    </key>
+    <key name="zed-theme-light" type="s">
+      <default>"One Light"</default>
+    </key>
+    <key name="zed-theme-dark" type="s">
+      <default>"One Dark"</default>
+    </key>
+    <key name="vscode-sync-enabled" type="b">
+      <default>false</default>
+    </key>
+    <key name="vscode-theme-light" type="s">
+      <default>"Default Light Modern"</default>
+    </key>
+    <key name="vscode-theme-dark" type="s">
+      <default>"Default Dark Modern"</default>
+    </key>
+    <key name="alacritty-sync-enabled" type="b">
+      <default>false</default>
+    </key>
+    <key name="alacritty-theme-light" type="s">
+      <default>""</default>
+    </key>
+    <key name="alacritty-theme-dark" type="s">
+      <default>""</default>
+    </key>
+    <key name="kitty-sync-enabled" type="b">
+      <default>false</default>
+    </key>
+    <key name="kitty-theme-light" type="s">
+      <default>""</default>
+    </key>
+    <key name="kitty-theme-dark" type="s">
+      <default>""</default>
+    </key>
+    <key name="ghostty-sync-enabled" type="b">
+      <default>false</default>
+    </key>
+    <key name="ghostty-theme-light" type="s">
+      <default>""</default>
+    </key>
+    <key name="ghostty-theme-dark" type="s">
+      <default>""</default>
+    </key>
+    <key name="wallpaper-slideshow-enabled" type="b">
+      <default>false</default>
+      <summary>Enable dynamic wallpaper slideshow</summary>
+      <description>Cycle through wallpapers in specified light and dark mode folders.</description>
+    </key>
+    <key name="wallpaper-folder-light" type="s">
+      <default>""</default>
+    </key>
+    <key name="wallpaper-folder-dark" type="s">
+      <default>""</default>
+    </key>
+    <key name="wallpaper-slideshow-interval" type="i">
+      <default>1800</default>
+    </key>
+    <key name="wallpaper-slideshow-random" type="b">
+      <default>true</default>
+    </key>
+    <key name="sync-accent-color" type="b">
+      <default>false</default>
+      <summary>Sync accent color</summary>
+      <description>Automatically change GNOME accent color on theme switch.</description>
+    </key>
+    <key name="accent-color-light" type="s">
+      <default>"blue"</default>
+    </key>
+    <key name="accent-color-dark" type="s">
+      <default>"purple"</default>
+    </key>
+    <key name="sync-brightness" type="b">
+      <default>false</default>
+      <summary>Sync screen brightness</summary>
+      <description>Automatically adjust screen brightness percentage on theme switch.</description>
+    </key>
+    <key name="brightness-light" type="i">
+      <default>80</default>
+    </key>
+    <key name="brightness-dark" type="i">
+      <default>30</default>
+    </key>
   </schema>
 </schemalist>
