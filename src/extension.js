@@ -89,12 +89,14 @@ export default class DayNightThemeSync extends Extension {
     this._settings?.disconnectObject(this);
     Main.extensionManager.disconnectObject(this);
 
-    // Remove all active timeouts explicitly so static analysers can verify cleanup
-    if (this._timeouts?.shellTheme)    GLib.source_remove(this._timeouts.shellTheme);
-    if (this._timeouts?.transition)    GLib.source_remove(this._timeouts.transition);
-    if (this._timeouts?.changeIcons)   GLib.source_remove(this._timeouts.changeIcons);
-    if (this._timeouts?.settingsWrite) GLib.source_remove(this._timeouts.settingsWrite);
-    this._timeouts = null;
+    // Remove all active timeouts in a loop on disable
+    if (this._timeouts) {
+      for (const id of Object.values(this._timeouts)) {
+        if (id)
+          GLib.source_remove(id);
+      }
+      this._timeouts = null;
+    }
 
     this._currentShellTheme = null;
     this._themes = null;

@@ -92,7 +92,6 @@ export class OptimizeTransition {
   }
 
   disable() {
-    if (!this.enabled) return;
     this.enabled = false;
 
     this._settings = null;
@@ -104,8 +103,12 @@ export class OptimizeTransition {
       this.darkModeTransition = null;
     }
 
-    if (this.darkModeToggle && typeof this.darkModeToggle._toggleMode === "function")
-      this.darkModeToggle._toggleMode = this._originalToggleMode;
+    if (this.darkModeToggle && typeof this.darkModeToggle._toggleMode === "function") {
+      if (this._originalToggleMode) {
+        this.darkModeToggle._toggleMode = this._originalToggleMode;
+        this._originalToggleMode = null;
+      }
+    }
 
     if (this._toggleTimeoutId) {
       GLib.source_remove(this._toggleTimeoutId);
@@ -137,9 +140,14 @@ export class OptimizeTransition {
 
       this.secondClick = true;
 
+      if (that._toggleTimeoutId) {
+        GLib.source_remove(that._toggleTimeoutId);
+        that._toggleTimeoutId = 0;
+      }
+
       that._toggleTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, CLICK_DELAY, () => {
         this.secondClick = false;
-        this._toggleTimeoutId = 0;
+        that._toggleTimeoutId = 0;
         return GLib.SOURCE_REMOVE;
       });
 
