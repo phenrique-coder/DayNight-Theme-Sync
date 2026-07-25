@@ -520,6 +520,15 @@ export default class DayNightThemeSync extends Extension {
         this._wallpaperSlideshow?.update(this.getDarkMode());
       }
 
+      if (
+        key.startsWith("sync-brightness") ||
+        key.startsWith("brightness-") ||
+        key.startsWith("sync-accent-color") ||
+        key.startsWith("accent-color-")
+      ) {
+        this._brightnessAccentSync?.sync(isDm);
+      }
+
       this._timeouts.settingsWrite = 0;
       return GLib.SOURCE_REMOVE;
     });

@@ -28,4 +28,6 @@ Todas as mudanças relevantes no projeto **DayNight Theme Sync** serão document
 ### Corrigido
 - **Alternância de Tema pelo Botão do Sistema**:
   - Corrigida falha no botão do sistema (Quick Settings) que impedia a troca entre Modo Claro e Modo Escuro devido a sobreposição de sinais e bloqueio na transição.
+- **Sincronização de Brilho da Tela**:
+  - Corrigida a assinatura da chamada DBus para ajuste de brilho da tela ao alternar o tema e adicionada atualização imediata ao alterar as configurações nas preferências.
 

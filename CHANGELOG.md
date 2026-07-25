@@ -28,4 +28,6 @@ All notable changes to the **DayNight Theme Sync** project will be documented in
 ### Fixed
 - **System Dark/Light Mode Button**:
   - Fixed Quick Settings toggle button failure to switch themes caused by signal loop and transition lockup.
+- **Screen Brightness Sync**:
+  - Fixed DBus call method signature for display brightness adjustment on theme change and updated settings listeners.
 
